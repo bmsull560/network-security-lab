@@ -1,0 +1,44 @@
+# Secrets — never commit
+.env
+.env.local
+*.env
+
+# Docker volumes and data
+volumes/
+data/
+
+# Packet captures
+*.pcap
+*.pcapng
+*.cap
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+.pytest_cache/
+
+# Logs (local runs)
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets directory
+secrets/
+
+# Test artifacts
+.coverage
+htmlcov/
