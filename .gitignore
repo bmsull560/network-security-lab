@@ -42,3 +42,5 @@ secrets/
 # Test artifacts
 .coverage
 htmlcov/
+docker/certs/
+docker/.env

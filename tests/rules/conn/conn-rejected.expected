@@ -1,0 +1,4 @@
+rule_id: 100903
+rule_level: 7
+rule_description: Zeek: Connection from
+decoder_name: zeek

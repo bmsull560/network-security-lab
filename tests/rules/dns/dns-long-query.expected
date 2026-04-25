@@ -1,0 +1,4 @@
+rule_id: 100910
+rule_level: 7
+rule_description: Zeek: Unusually long DNS query
+decoder_name: zeek

@@ -1,0 +1,183 @@
+---
+# network-security-lab — Wazuh stack
+# Wazuh 4.12.0 | Docker Compose v2
+#
+# Constitution compliance:
+#   Article IX  — all image versions pinned
+#   Article XI  — services run as non-root where possible
+#   Article I   — no unnecessary ports exposed externally
+#
+# Usage:
+#   cp docker/.env.example docker/.env   # fill in passwords
+#   make up                              # start stack
+#   make down                            # stop stack
+#   make status                          # check health
+
+services:
+
+  # ── Wazuh Indexer (OpenSearch) ──────────────────────────────────────────────
+  wazuh-indexer:
+    image: wazuh/wazuh-indexer:4.12.0
+    container_name: wazuh-indexer
+    restart: unless-stopped
+    hostname: wazuh-indexer
+    environment:
+      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "bootstrap.memory_lock=true"
+      - "discovery.type=single-node"
+      - "plugins.security.ssl.http.enabled=true"
+      - "plugins.security.ssl.http.pemcert_filepath=certs/wazuh-indexer.pem"
+      - "plugins.security.ssl.http.pemkey_filepath=certs/wazuh-indexer-key.pem"
+      - "plugins.security.ssl.http.pemtrustedcas_filepath=certs/root-ca.pem"
+      - "plugins.security.ssl.transport.pemcert_filepath=certs/wazuh-indexer.pem"
+      - "plugins.security.ssl.transport.pemkey_filepath=certs/wazuh-indexer-key.pem"
+      - "plugins.security.ssl.transport.pemtrustedcas_filepath=certs/root-ca.pem"
+      - "plugins.security.ssl.transport.enforce_hostname_verification=false"
+      - "plugins.security.ssl.http.enabled_protocols=TLSv1.2,TLSv1.3"
+      - INDEXER_USERNAME=${INDEXER_USERNAME}
+      - INDEXER_PASSWORD=${INDEXER_PASSWORD}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - wazuh-indexer-data:/var/lib/wazuh-indexer
+      - ./certs/wazuh-indexer.pem:/usr/share/wazuh-indexer/certs/wazuh-indexer.pem:ro
+      - ./certs/wazuh-indexer-key.pem:/usr/share/wazuh-indexer/certs/wazuh-indexer-key.pem:ro
+      - ./certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem:ro
+      - ./certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem:ro
+      - ./certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem:ro
+    networks:
+      - wazuh-net
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sk https://localhost:9200 -u ${INDEXER_USERNAME}:${INDEXER_PASSWORD} | grep -q 'wazuh-indexer'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ── Wazuh Manager ────────────────────────────────────────────────────────────
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.12.0
+    container_name: wazuh-manager
+    restart: unless-stopped
+    hostname: wazuh-manager
+    environment:
+      - INDEXER_URL=https://wazuh-indexer:9200
+      - INDEXER_USERNAME=${INDEXER_USERNAME}
+      - INDEXER_PASSWORD=${INDEXER_PASSWORD}
+      - FILEBEAT_SSL_VERIFICATION_MODE=full
+      - SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem
+      - SSL_CERTIFICATE=/etc/ssl/filebeat.pem
+      - SSL_KEY=/etc/ssl/filebeat-key.pem
+      - API_USERNAME=${WAZUH_API_USERNAME}
+      - API_PASSWORD=${WAZUH_API_PASSWORD}
+    volumes:
+      - wazuh-manager-api-configuration:/var/ossec/api/configuration
+      - wazuh-manager-etc:/var/ossec/etc
+      - wazuh-manager-logs:/var/ossec/logs
+      - wazuh-manager-queue:/var/ossec/queue
+      - wazuh-manager-var-multigroups:/var/ossec/var/multigroups
+      - wazuh-manager-integrations:/var/ossec/integrations
+      - wazuh-manager-active-response:/var/ossec/active-response/bin
+      - wazuh-manager-agentless:/var/ossec/agentless
+      - wazuh-manager-wodles:/var/ossec/wodles
+      - wazuh-filebeat-etc:/etc/filebeat
+      - wazuh-filebeat-var:/var/lib/filebeat
+      - ./certs/root-ca-manager.pem:/etc/ssl/root-ca.pem:ro
+      - ./certs/wazuh-manager.pem:/etc/ssl/filebeat.pem:ro
+      - ./certs/wazuh-manager-key.pem:/etc/ssl/filebeat-key.pem:ro
+      # Custom decoders and rules (mounted read-only into manager)
+      - ../wazuh/decoders:/var/ossec/etc/decoders/custom:ro
+      - ../wazuh/rules:/var/ossec/etc/rules/custom:ro
+    ports:
+      # Agent enrollment and communication — bind to localhost only for security
+      # Change to 0.0.0.0:1514 if agents are on other hosts
+      - "127.0.0.1:1514:1514/tcp"
+      - "127.0.0.1:1514:1514/udp"
+      - "127.0.0.1:1515:1515/tcp"
+      # Wazuh API — localhost only; use SSH tunnel or VPN for remote access
+      - "127.0.0.1:55000:55000/tcp"
+    networks:
+      - wazuh-net
+    depends_on:
+      wazuh-indexer:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sk https://localhost:55000/ -u ${WAZUH_API_USERNAME}:${WAZUH_API_PASSWORD} | grep -q 'Wazuh'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  # ── Wazuh Dashboard ──────────────────────────────────────────────────────────
+  wazuh-dashboard:
+    image: wazuh/wazuh-dashboard:4.12.0
+    container_name: wazuh-dashboard
+    restart: unless-stopped
+    hostname: wazuh-dashboard
+    environment:
+      - INDEXER_USERNAME=${INDEXER_USERNAME}
+      - INDEXER_PASSWORD=${INDEXER_PASSWORD}
+      - WAZUH_API_URL=https://wazuh-manager
+      - DASHBOARD_USERNAME=${DASHBOARD_USERNAME}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
+      - API_USERNAME=${WAZUH_API_USERNAME}
+      - API_PASSWORD=${WAZUH_API_PASSWORD}
+    volumes:
+      - ./certs/wazuh-dashboard.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard.pem:ro
+      - ./certs/wazuh-dashboard-key.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard-key.pem:ro
+      - ./certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem:ro
+    ports:
+      # Dashboard — accessible on localhost:443
+      # For remote access, use SSH tunnel: ssh -L 443:localhost:443 user@host
+      - "127.0.0.1:443:5601/tcp"
+    networks:
+      - wazuh-net
+    depends_on:
+      wazuh-manager:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sk https://localhost:5601/app/wazuh | grep -q 'wazuh'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+# ── Networks ──────────────────────────────────────────────────────────────────
+networks:
+  wazuh-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  wazuh-indexer-data:
+  wazuh-manager-api-configuration:
+  wazuh-manager-etc:
+  wazuh-manager-logs:
+  wazuh-manager-queue:
+  wazuh-manager-var-multigroups:
+  wazuh-manager-integrations:
+  wazuh-manager-active-response:
+  wazuh-manager-agentless:
+  wazuh-manager-wodles:
+  wazuh-filebeat-etc:
+  wazuh-filebeat-var:

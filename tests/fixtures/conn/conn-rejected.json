@@ -1,0 +1,1 @@
+{"ts":1745539300.111111,"uid":"GCkPsM7Aq9bUrR8901","id.orig_h":"192.168.1.99","id.orig_p":45678,"id.resp_h":"192.168.1.10","id.resp_p":5555,"proto":"tcp","conn_state":"REJ","local_orig":true,"local_resp":true,"missed_bytes":0,"orig_bytes":0,"resp_bytes":0,"orig_pkts":1,"resp_pkts":1,"orig_ip_bytes":40,"resp_ip_bytes":40}

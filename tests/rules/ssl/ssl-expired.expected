@@ -1,0 +1,4 @@
+rule_id: 100907
+rule_level: 12
+rule_description: Zeek: TLS connection to server with expired certificate
+decoder_name: zeek
