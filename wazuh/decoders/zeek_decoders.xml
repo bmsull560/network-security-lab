@@ -1,0 +1,258 @@
+<!--
+  zeek_decoders.xml — Custom Wazuh decoders for Zeek JSON logs
+  
+  These decoders parse structured fields from Zeek JSON log output.
+  Zeek logs are shipped by the Wazuh agent with log_format=json, so the
+  built-in json decoder handles the outer envelope. These decoders extract
+  Zeek-specific fields for use in rules.
+
+  Rule ID range reserved for this project: 100900-101999
+  
+  Constitution compliance:
+    Article X  — all decoders have corresponding fixtures in tests/fixtures/
+    Article V  — log content is parsed as data, never executed
+-->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     ROOT DECODER — matches any Zeek JSON log (all types share the "ts" field)
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<decoder name="zeek">
+  <prematch>"ts":</prematch>
+</decoder>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     COMMON FIELDS — present in conn.log, dns.log, ssl.log
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"uid":"(\w+)"</regex>
+  <order>uid</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"id\.orig_h":"(\.+)"</regex>
+  <order>srcip</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"id\.orig_p":(\d+)</regex>
+  <order>srcport</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"id\.resp_h":"(\.+)"</regex>
+  <order>dstip</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"id\.resp_p":(\d+)</regex>
+  <order>dstport</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"proto":"(\w+)"</regex>
+  <order>protocol</order>
+</decoder>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     DNS FIELDS — dns.log specific
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"trans_id":(\d+)</regex>
+  <order>dns_transaction_id</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"query":"(\.+)"</regex>
+  <order>dns_query</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"qtype_name":"(\w+)"</regex>
+  <order>dns_qtype</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"rcode_name":"(\w+)"</regex>
+  <order>dns_rcode</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"AA":(true|false)</regex>
+  <order>dns_authoritative</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"TC":(true|false)</regex>
+  <order>dns_truncated</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"RD":(true|false)</regex>
+  <order>dns_recursion_desired</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"RA":(true|false)</regex>
+  <order>dns_recursion_available</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"rejected":(true|false)</regex>
+  <order>dns_rejected</order>
+</decoder>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     CONNECTION FIELDS — conn.log specific
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"conn_state":"(\w+)"</regex>
+  <order>conn_state</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"service":"(\w+)"</regex>
+  <order>conn_service</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"duration":(\d+\.?\d*)</regex>
+  <order>conn_duration</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"orig_bytes":(\d+)</regex>
+  <order>conn_orig_bytes</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"resp_bytes":(\d+)</regex>
+  <order>conn_resp_bytes</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"orig_pkts":(\d+)</regex>
+  <order>conn_orig_pkts</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"resp_pkts":(\d+)</regex>
+  <order>conn_resp_pkts</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"local_orig":(true|false)</regex>
+  <order>conn_local_orig</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"local_resp":(true|false)</regex>
+  <order>conn_local_resp</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"missed_bytes":(\d+)</regex>
+  <order>conn_missed_bytes</order>
+</decoder>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SSL/TLS FIELDS — ssl.log specific
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"version":"([\w\. ]+)"</regex>
+  <order>ssl_version</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"cipher":"([\w\-]+)"</regex>
+  <order>ssl_cipher</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"curve":"([\w\-]+)"</regex>
+  <order>ssl_curve</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"server_name":"(\.+)"</regex>
+  <order>ssl_server_name</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"established":(true|false)</regex>
+  <order>ssl_established</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"resumed":(true|false)</regex>
+  <order>ssl_resumed</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"validation_status":"(\.+)"</regex>
+  <order>ssl_validation_status</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"next_protocol":"(\w+)"</regex>
+  <order>ssl_next_protocol</order>
+</decoder>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SOFTWARE FIELDS — software.log specific
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"software_type":"(\.+)"</regex>
+  <order>software_type</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"name":"([\w\-\.]+)"</regex>
+  <order>software_name</order>
+</decoder>
+
+<decoder name="zeek">
+  <parent>zeek</parent>
+  <regex>"unparsed_version":"(\.+)"</regex>
+  <order>software_version</order>
+</decoder>

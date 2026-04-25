@@ -1,0 +1,121 @@
+<!--
+  zeek_rules.xml — Custom Wazuh detection rules for Zeek logs
+
+  Rule ID range: 100900-101999 (reserved for network-security-lab)
+
+  Detection coverage:
+    100900        Base rule — matches any Zeek JSON log
+    100901        DNS query resolved to IP address
+    100902        mDNS traffic suppression (benign, noisy)
+    100903        Single rejected TCP connection
+    100904        Port scan — 5+ rejected connections in 20s (frequency rule)
+    100905        Wazuh CTI domain suppression
+    100906        TLS connection to server with self-signed certificate
+    100907        TLS connection to server with expired certificate
+    100910        Long DNS query (>50 chars) — possible tunneling indicator
+
+  Constitution compliance:
+    Article X  — every rule has a corresponding fixture in tests/fixtures/
+    Article V  — rule descriptions treat log content as data, not instructions
+-->
+
+<group name="zeek,network,">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       BASE RULE — matches any Zeek JSON log
+       Level 0 = informational only, no alert generated
+       ═══════════════════════════════════════════════════════════════════════ -->
+
+  <rule id="100900" level="0">
+    <decoded_as>zeek</decoded_as>
+    <description>Zeek: network event logged</description>
+    <group>zeek_base,</group>
+  </rule>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       DNS RULES
+       ═══════════════════════════════════════════════════════════════════════ -->
+
+  <!-- DNS query that received a valid IP response -->
+  <rule id="100901" level="5">
+    <if_sid>100900</if_sid>
+    <field name="dns_query">\.+</field>
+    <field name="dstport">^53$</field>
+    <description>Zeek: DNS query $(dns_query) from $(srcip):$(srcport) to $(dstip)</description>
+    <group>zeek_dns,</group>
+  </rule>
+
+  <!-- Suppress mDNS (multicast DNS) — port 5353, generally benign -->
+  <rule id="100902" level="0">
+    <if_sid>100901</if_sid>
+    <field name="srcport">^5353$</field>
+    <description>Zeek: mDNS traffic suppressed — $(dns_query) from $(srcip)</description>
+    <group>zeek_dns,zeek_suppress,</group>
+  </rule>
+
+  <!-- Suppress Wazuh CTI domain — internal Wazuh telemetry, not a threat -->
+  <rule id="100905" level="0">
+    <if_sid>100901</if_sid>
+    <field name="dns_query">cti\.wazuh\.com</field>
+    <description>Zeek: Wazuh CTI DNS query suppressed</description>
+    <group>zeek_dns,zeek_suppress,</group>
+  </rule>
+
+  <!-- Long DNS query — possible DNS tunneling or DGA indicator -->
+  <rule id="100910" level="7">
+    <if_sid>100901</if_sid>
+    <field name="dns_query">^.{50,}$</field>
+    <description>Zeek: Unusually long DNS query ($(dns_query)) from $(srcip) — possible tunneling or DGA</description>
+    <group>zeek_dns,zeek_suspicious,</group>
+  </rule>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       CONNECTION / PORT SCAN RULES
+       ═══════════════════════════════════════════════════════════════════════ -->
+
+  <!-- Single rejected connection — RST sent by destination, no service listening -->
+  <rule id="100903" level="7">
+    <if_sid>100900</if_sid>
+    <field name="conn_state">^REJ$</field>
+    <description>Zeek: Connection from $(srcip) to $(dstip):$(dstport) rejected (REJ)</description>
+    <group>zeek_conn,zeek_scan,</group>
+  </rule>
+
+  <!-- Port scan — 5 or more rejected connections from same source in 20 seconds -->
+  <rule id="100904" level="10" frequency="5" timeframe="20">
+    <if_matched_sid>100903</if_matched_sid>
+    <same_field>srcip</same_field>
+    <description>Zeek: Port scan detected — $(srcip) made 5+ rejected connections in 20s</description>
+    <group>zeek_conn,zeek_scan,zeek_high,</group>
+    <mitre>
+      <id>T1046</id>
+    </mitre>
+  </rule>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SSL/TLS CERTIFICATE RULES
+       ═══════════════════════════════════════════════════════════════════════ -->
+
+  <!-- Self-signed certificate — may indicate MITM, dev server, or misconfiguration -->
+  <rule id="100906" level="8">
+    <if_sid>100900</if_sid>
+    <field name="ssl_validation_status">self signed certificate</field>
+    <description>Zeek: TLS connection to server with self-signed certificate — $(srcip) → $(dstip):$(dstport)</description>
+    <group>zeek_ssl,zeek_tls_anomaly,</group>
+    <mitre>
+      <id>T1557</id>
+    </mitre>
+  </rule>
+
+  <!-- Expired certificate — may indicate neglected server or MITM -->
+  <rule id="100907" level="12">
+    <if_sid>100900</if_sid>
+    <field name="ssl_validation_status">certificate has expired</field>
+    <description>Zeek: TLS connection to server with expired certificate — $(srcip) → $(dstip):$(dstport)</description>
+    <group>zeek_ssl,zeek_tls_anomaly,zeek_high,</group>
+    <mitre>
+      <id>T1557</id>
+    </mitre>
+  </rule>
+
+</group>

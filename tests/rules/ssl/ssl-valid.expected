@@ -1,0 +1,4 @@
+rule_id: 100900
+rule_level: 0
+rule_description: Zeek: network event logged
+decoder_name: zeek

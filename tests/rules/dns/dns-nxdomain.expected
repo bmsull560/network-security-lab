@@ -1,0 +1,4 @@
+rule_id: 100901
+rule_level: 5
+rule_description: Zeek: DNS query
+decoder_name: zeek

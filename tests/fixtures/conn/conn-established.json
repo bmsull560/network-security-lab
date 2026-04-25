@@ -1,0 +1,1 @@
+{"ts":1745539310.222222,"uid":"HDkQtN8Br0cVsS9012","id.orig_h":"192.168.1.42","id.orig_p":52341,"id.resp_h":"93.184.216.34","id.resp_p":443,"proto":"tcp","service":"ssl","duration":1.234567,"conn_state":"SF","local_orig":true,"local_resp":false,"missed_bytes":0,"orig_bytes":1024,"resp_bytes":8192,"orig_pkts":12,"resp_pkts":18,"orig_ip_bytes":1504,"resp_ip_bytes":8832}

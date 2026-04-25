@@ -1,0 +1,4 @@
+rule_id: 100902
+rule_level: 0
+rule_description: Zeek: mDNS traffic suppressed
+decoder_name: zeek

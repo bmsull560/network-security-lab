@@ -1,0 +1,4 @@
+rule_id: 100906
+rule_level: 8
+rule_description: Zeek: TLS connection to server with self-signed certificate
+decoder_name: zeek
