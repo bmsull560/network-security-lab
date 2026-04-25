@@ -1,0 +1,19 @@
+<!-- ossec.conf.snippet — Zeek log localfile stanza
+     Add this block to /var/ossec/etc/ossec.conf on the Wazuh agent host,
+     inside the <ossec_config> element.
+
+     This configures the agent to ship all Zeek JSON logs to the manager.
+     The wildcard *.log picks up conn.log, dns.log, ssl.log, notice.log,
+     software.log, and any other log types Zeek generates.
+
+     The install-agent.sh script adds this automatically.
+     This file is provided as a reference for manual configuration.
+-->
+
+<ossec_config>
+  <!-- Zeek JSON logs -->
+  <localfile>
+    <log_format>json</log_format>
+    <location>/opt/zeek/logs/current/*.log</location>
+  </localfile>
+</ossec_config>
