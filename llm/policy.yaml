@@ -1,0 +1,68 @@
+# llm/policy.yaml — LLM Tool Policy Broker
+#
+# Defines which tools the LLM assistant may call.
+# All tool calls are intercepted by llm/service/policy.py before execution.
+#
+# Constitution compliance:
+#   Article III  — LLM is read-only by default
+#   Article VII  — no autonomous destructive actions
+#   Article XIII — all tool calls are audit-logged
+
+allowed_tools:
+  - name: get_alerts
+    description: Retrieve recent alerts from Wazuh indexer
+    method: GET
+    path_pattern: "/api/v1/alerts"
+
+  - name: get_alert_detail
+    description: Retrieve a single alert by ID
+    method: GET
+    path_pattern: "/api/v1/alerts/{id}"
+
+  - name: get_rule
+    description: Retrieve a Wazuh rule definition by ID
+    method: GET
+    path_pattern: "/rules"
+
+  - name: get_decoder
+    description: Retrieve a Wazuh decoder definition
+    method: GET
+    path_pattern: "/decoders"
+
+  - name: search_events
+    description: Search indexed events with a query
+    method: GET
+    path_pattern: "/api/v1/events"
+
+# These tools produce draft output only — never applied automatically.
+# Operator must review and apply manually.
+approval_required_tools:
+  - name: draft_rule
+    description: >
+      Generate a draft Wazuh rule based on observed alert patterns.
+      Output is returned to the operator as text — never applied automatically.
+
+  - name: draft_query
+    description: >
+      Generate a draft Wazuh/OpenSearch query for threat hunting.
+      Output is returned to the operator as text — never executed automatically.
+
+# These patterns are unconditionally blocked regardless of LLM instruction.
+forbidden_patterns:
+  - method: PUT
+    reason: "Write operations are forbidden for LLM service account"
+  - method: POST
+    path_pattern: "^(?!/security/user/authenticate).*"
+    reason: "POST operations (except auth) are forbidden"
+  - method: DELETE
+    reason: "Delete operations are forbidden for LLM service account"
+  - method: PATCH
+    reason: "Patch operations are forbidden for LLM service account"
+  - path_pattern: "/active-response"
+    reason: "Active response is forbidden — requires human approval"
+  - path_pattern: "/rules.*"
+    method: PUT
+    reason: "Rule modification requires human review and deployment"
+  - path_pattern: "/decoders.*"
+    method: PUT
+    reason: "Decoder modification requires human review and deployment"

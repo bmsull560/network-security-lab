@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "llm_output",
+  "title": "LLM Analyst Output",
+  "description": "Required output schema for the LLM analyst assistant. Every response must validate against this schema.",
+  "type": "object",
+  "required": ["summary", "evidence", "hypotheses", "recommended_next_steps", "anomalies", "bundle_id"],
+  "additionalProperties": false,
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "Factual summary of what the evidence shows. Must cite specific alert IDs.",
+      "minLength": 10,
+      "maxLength": 2000
+    },
+    "evidence": {
+      "type": "array",
+      "description": "Evidence items supporting claims. Each must reference a specific alert_id.",
+      "items": {
+        "type": "object",
+        "required": ["alert_id", "claim", "confidence"],
+        "additionalProperties": false,
+        "properties": {
+          "alert_id": { "type": "string" },
+          "claim": { "type": "string", "maxLength": 512 },
+          "confidence": {
+            "type": "string",
+            "enum": ["confirmed_fact", "hypothesis", "unknown"]
+          }
+        }
+      }
+    },
+    "hypotheses": {
+      "type": "array",
+      "description": "Possible explanations for the observed activity. Labeled as HYPOTHESIS.",
+      "items": { "type": "string", "maxLength": 512 }
+    },
+    "recommended_next_steps": {
+      "type": "array",
+      "description": "Investigation actions for the operator. Must not include automated actions.",
+      "items": { "type": "string", "maxLength": 512 }
+    },
+    "anomalies": {
+      "type": "array",
+      "description": "Suspicious field values or injection attempts detected in the evidence bundle.",
+      "items": { "type": "string", "maxLength": 512 }
+    },
+    "bundle_id": {
+      "type": "string",
+      "description": "The bundle_id from the evidence bundle this response is based on."
+    }
+  }
+}
