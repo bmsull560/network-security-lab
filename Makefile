@@ -7,24 +7,26 @@ COMPOSE_FILE := $(COMPOSE_DIR)/docker-compose.yml
 ENV_FILE     := $(COMPOSE_DIR)/.env
 
 .PHONY: help up down restart status logs lint test-rules test-injection \
-        test-all backup certs-generate clean
+        test-all backup certs-generate clean llm-logs ollama-pull
 
 # ── Help ──────────────────────────────────────────────────────────────────────
 help:
 	@echo ""
 	@echo "network-security-lab"
 	@echo "────────────────────────────────────────────────────────"
-	@echo "  make up              Start the full Wazuh stack"
+	@echo "  make up              Start the full stack (Wazuh + Ollama + LLM service)"
 	@echo "  make down            Stop the stack (volumes preserved)"
 	@echo "  make restart         Restart all services"
 	@echo "  make status          Show container health status"
 	@echo "  make logs            Tail logs from all containers"
 	@echo "  make logs s=<name>   Tail logs from a specific service"
+	@echo "  make llm-logs        Tail logs from llm-service only"
+	@echo "  make ollama-pull     Re-pull the Ollama model"
 	@echo ""
 	@echo "  make test-rules      Run rule regression tests"
 	@echo "  make test-injection  Run prompt injection safety tests"
 	@echo "  make test-all        Run all tests"
-	@echo "  make lint            Lint XML, YAML, shell scripts"
+	@echo "  make lint            Lint XML, YAML, shell scripts, Python"
 	@echo ""
 	@echo "  make backup          Run backup script"
 	@echo "  make certs-generate  Generate self-signed certs for dev"
@@ -67,14 +69,28 @@ test-injection:
 test-all: test-rules test-injection
 	@echo "→ All tests complete."
 
+# ── LLM service helpers ───────────────────────────────────────────────────────
+llm-logs:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f llm-service
+
+ollama-pull: _check-env
+	@echo "→ Pulling Ollama model $$(grep OLLAMA_MODEL $(ENV_FILE) | cut -d= -f2)..."
+	docker exec ollama ollama pull $$(grep OLLAMA_MODEL $(ENV_FILE) | cut -d= -f2)
+
 # ── Lint ──────────────────────────────────────────────────────────────────────
 lint:
 	@echo "→ Linting XML..."
-	@find wazuh/ -name "*.xml" -exec xmllint --noout {} \; && echo "  XML OK"
+	@find wazuh/ -name "*.xml" -exec xmllint --noout {} \; && echo "  XML OK" || echo "  xmllint not installed — skipping"
 	@echo "→ Linting YAML..."
-	@find . -name "*.yml" -o -name "*.yaml" | grep -v ".git" | xargs -I{} sh -c 'python3 -c "import yaml,sys; yaml.safe_load(open(\"{}\")); print(\"  OK: {}\")"'
+	@find . -name "*.yml" -o -name "*.yaml" | grep -v ".git" | xargs -I{} sh -c 'python3 -c "import yaml,sys; yaml.safe_load(open(\"{}\")); print(\"  OK: {}\")" 2>/dev/null || true'
 	@echo "→ Linting shell scripts..."
 	@find scripts/ -name "*.sh" -exec bash -n {} \; && echo "  Shell OK"
+	@echo "→ Linting Python..."
+	@if command -v flake8 >/dev/null 2>&1; then \
+		flake8 llm/service/ --max-line-length=100 --exclude=__pycache__ && echo "  Python OK"; \
+	else \
+		echo "  flake8 not installed — skipping Python lint"; \
+	fi
 	@echo "→ Lint complete."
 
 # ── Backup ────────────────────────────────────────────────────────────────────

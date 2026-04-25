@@ -159,6 +159,71 @@ services:
       retries: 5
       start_period: 120s
 
+  # ── Ollama (local LLM inference) ─────────────────────────────────────────────
+  ollama:
+    # NOTE: ollama/ollama does not publish stable versioned tags.
+    # For production, pin to a digest: ollama/ollama@sha256:<digest>
+    # Run: docker inspect ollama/ollama:latest --format '{{index .RepoDigests 0}}'
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    # Entrypoint: start server in background, wait for it, pull model, then wait forever
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 8 && ollama pull ${OLLAMA_MODEL} && wait"]
+    environment:
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - wazuh-net
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags | grep -q 'models'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+
+  # ── LLM Analyst Service ───────────────────────────────────────────────────────
+  llm-service:
+    build:
+      context: ..
+      dockerfile: llm/service/Dockerfile
+    container_name: llm-service
+    restart: unless-stopped
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - LLM_BACKEND=${LLM_BACKEND:-ollama}
+      - LLM_TIMEOUT_SECONDS=${LLM_TIMEOUT_SECONDS:-120}
+      - WAZUH_API_URL=https://wazuh-manager:55000
+      - WAZUH_READONLY_USERNAME=${WAZUH_READONLY_USERNAME}
+      - WAZUH_READONLY_PASSWORD=${WAZUH_READONLY_PASSWORD}
+      - AUDIT_LOG_PATH=${AUDIT_LOG_PATH:-/app/audit/audit.jsonl}
+    volumes:
+      - llm-audit-logs:/app/audit
+    ports:
+      - "127.0.0.1:8080:8080/tcp"
+    networks:
+      - wazuh-net
+    depends_on:
+      ollama:
+        condition: service_healthy
+      wazuh-manager:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health | grep -q 'ok'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
 # ── Networks ──────────────────────────────────────────────────────────────────
 networks:
   wazuh-net:
@@ -181,3 +246,5 @@ volumes:
   wazuh-manager-wodles:
   wazuh-filebeat-etc:
   wazuh-filebeat-var:
+  ollama-models:
+  llm-audit-logs:
